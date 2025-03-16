@@ -1,49 +1,32 @@
 <!--
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2025 The Linux Foundation
+SPDX-License-Identifier: Apache-2.0
+SPDX-FileCopyrightText: 2025 The Linux Foundation
 -->
 
-# 🛠️ Template Action
+# 🐍 Python Project Current Version
 
-This is a template for the other actions in this Github organisation.
+Returns the current version of a Python Project declared in the metadata
+description/files. Supports both pyproject.toml and setup.py locations.
 
-## actions-template
+## python-project-version-action
 
 ## Usage Example
 
-<!-- markdownlint-disable MD046 -->
+An example workflow step using this action:
 
 ```yaml
-steps:
-  - name: "Action template"
-    id: action-template
-    uses: lfreleng-actions/actions-template@main
-    with:
-      input: "placeholder"
+  # Code checkout performed in earlier workflow step
+  - name: Retrieve the current Python Project version
+    uses: lfreleng-actions/python-project-version-action@main
 ```
-
-<!-- markdownlint-enable MD046 -->
-
-## Inputs
-
-<!-- markdownlint-disable MD013 -->
-
-| Variable Name | Required | Description  |
-| ------------- | -------- | ------------ |
-| INPUT         | False    | Action input |
-
-<!-- markdownlint-enable MD013 -->
 
 ## Outputs
 
 <!-- markdownlint-disable MD013 -->
 
-| Variable Name | Description   |
-| ------------- | ------------- |
-| OUTPUT        | Action output |
+| Output Variable        | Description                                                   |
+| ---------------------- | ------------------------------------------------------------- |
+| PYTHON_PROJECT_VERSION | Current version of the Python Project                         |
+| SOURCE                 | Project metadata/description file [ pyproject.toml/setup.py ] |
 
 <!-- markdownlint-enable MD013 -->
-
-## Implementation Details
-
-## Notes
