@@ -16,15 +16,19 @@ An example workflow step using this action:
 
 ```yaml
   # Code checkout performed in earlier workflow step
-  - name: Retrieve the current Python Project version
+  - name: 'Retrieve the current Python project version'
     uses: lfreleng-actions/python-project-version-action@main
 ```
 
 ## Inputs
 
-| Output Variable     | Description                                    |
-| ------------------- | ---------------------------------------------- |
-| PATH_PREFIX         | Directory path to the repository/project files |
+<!-- markdownlint-disable MD013 -->
+
+| Output Variable     | Required | Description                                    |
+| ------------------- | -------- | ---------------------------------------------- |
+| path_prefix         | False    | Directory path to the repository/project files |
+
+<!-- markdownlint-enable MD013 -->
 
 ## Outputs
 
@@ -32,7 +36,9 @@ An example workflow step using this action:
 
 | Output Variable        | Description                                                   |
 | ---------------------- | ------------------------------------------------------------- |
-| PYTHON_PROJECT_VERSION | Current version of the Python Project                         |
-| SOURCE                 | Project metadata/description file [ pyproject.toml/setup.py ] |
+| python_project_version | Current version of the Python Project                         |
+| source                 | Project metadata/description file [ pyproject.toml/setup.py ] |
+
+Note: python_project_version set to 'dynamic' when dynamic project versioning enabled
 
 <!-- markdownlint-enable MD013 -->
