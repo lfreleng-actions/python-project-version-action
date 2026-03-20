@@ -38,6 +38,15 @@ jobs:
           repository: 'lfreleng-actions/test-python-project'
           path: 'test-python-project'
 
+      - name: 'Setup static version fixture for testing'
+        shell: bash
+        run: |
+          # Setup static version fixture for testing
+          # test-python-project now uses dynamic versioning;
+          # copy static variation for version extraction test
+          cp test-python-project/variations/static-eol.toml \
+            test-python-project/pyproject.toml
+
       - name: "Run Action: ${{ github.repository }}"
         uses: ./
         id: test
@@ -55,5 +64,32 @@ jobs:
             echo 'Unexpected return value for: python_project_version ❌'
             echo "Returned: ${{ steps.test.outputs.python_project_version }}"
             echo 'Expected: 0.0.1'
+            exit 1
+          fi
+
+      # Test dynamic versioning detection
+      - name: 'Restore dynamic pyproject.toml'
+        shell: bash
+        run: |
+          # Restore original dynamic pyproject.toml
+          git -C test-python-project checkout -- pyproject.toml
+
+      - name: "Run Action: ${{ github.repository }} [dynamic]"
+        uses: ./
+        id: test-dynamic
+        with:
+          path_prefix: 'test-python-project'
+
+      - name: "Validate dynamic version output"
+        shell: bash
+        run: |
+          # Validate dynamic versioning detection
+          VERSION="${{ steps.test-dynamic.outputs.python_project_version }}"
+          if [ "$VERSION" = 'dynamic' ]; then
+            echo "Dynamic versioning detected correctly ✅"
+          else
+            echo "Unexpected: python_project_version ❌"
+            echo "Returned: $VERSION"
+            echo 'Expected: dynamic'
             exit 1
           fi

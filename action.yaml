@@ -40,7 +40,7 @@ runs:
     - uses: lfreleng-actions/path-check-action@9606e61c870025bc956e63156d1d55c5df54426c # v0.2.0
       id: 'setup-py'
       with:
-        path: "${{ inputs.path_prefix }}/setup-py"
+        path: "${{ inputs.path_prefix }}/setup.py"
 
     - name: 'Use project version from setup.py'
       id: 'setup-py-version'
@@ -69,7 +69,7 @@ runs:
         exit 1
 
     - name: 'Determine versioning type [static|dynamic]'
-      if: steps.project-toml.outputs.type == 'file'
+      if: steps.pyproject-toml.outputs.type == 'file'
       id: versioning
       # yamllint disable-line rule:line-length
       uses: lfreleng-actions/python-dynamic-version-action@a64458c0978feeb833ee5fcc10af7ff99122a31a # v0.1.7
