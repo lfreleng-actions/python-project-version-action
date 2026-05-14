@@ -5,7 +5,9 @@
 # python-project-version-action
 name: '🐍 Python Project Version'
 description: 'Returns the version of a Python Project'
-# Supports both pyproject.toml and setup.py project descriptions
+# Supports pyproject.toml, setup.cfg, and setup.py project descriptions,
+# including PBR / setuptools-scm / versioneer / setuptools-dynamic
+# dynamic-versioning providers.
 
 inputs:
   # Optional
@@ -16,12 +18,26 @@ inputs:
 
 outputs:
   python_project_version:
-    description: 'The current version declared for a Python project'
-    value: "${{ steps.set.outputs.python_project_version }}"
+    description: >-
+      The current version declared for a Python project, or the literal
+      string "dynamic" when the project uses a dynamic versioning provider.
+    value: "${{ steps.extract.outputs.python_project_version }}"
   source:
-    # yamllint disable-line rule:line-length
-    description: 'File used to source project metadata [pyproject.toml|setup.py]'
-    value: "${{ steps.set.outputs.python_project_version }}"
+    description: >-
+      Path to the file the version (or dynamic flag) was sourced from
+      (pyproject.toml | setup.cfg | setup.py).
+    value: "${{ steps.extract.outputs.source }}"
+  dynamic_version:
+    description: >-
+      "true" when the project uses a dynamic versioning provider (PBR,
+      setuptools-scm, versioneer, setuptools-dynamic). "false" otherwise.
+    value: "${{ steps.extract.outputs.dynamic_version }}"
+  dynamic_provider:
+    description: >-
+      When dynamic_version is true, identifies the provider:
+      pbr | setuptools-scm | versioneer | setuptools-dynamic |
+      hatch-vcs | pyproject-dynamic | runtime-attr. Empty when static.
+    value: "${{ steps.extract.outputs.dynamic_provider }}"
 
 runs:
   using: 'composite'
@@ -33,84 +49,18 @@ runs:
 
         # Verify path_prefix a valid directory path
         if [ ! -d "${{ inputs.path_prefix }}" ]; then
-          echo 'Error: invalid path/prefix to project directory ❌'; exit 1
+          echo 'Error: invalid path/prefix to project directory ❌'
+          exit 1
         fi
 
-    # yamllint disable-line rule:line-length
-    - uses: lfreleng-actions/path-check-action@9606e61c870025bc956e63156d1d55c5df54426c # v0.2.0
-      id: 'setup-py'
-      with:
-        path: "${{ inputs.path_prefix }}/setup.py"
-
-    - name: 'Use project version from setup.py'
-      id: 'setup-py-version'
-      if: steps.setup-py.outputs.type == 'file'
-      # yamllint disable-line rule:line-length
-      uses: lfreleng-actions/file-grep-regex-action@ba13750798b15e6acf23f3342a280ffc8148b950 # v0.1.4
-      with:
-        flags: '-oP -m1'
-        # https://regex101.com/r/QKYHId/1
-        regex: '(?<=version=")([^"]*)'
-        filename: "${{ inputs.path_prefix }}/setup.py"
-
-    # yamllint disable-line rule:line-length
-    - uses: lfreleng-actions/path-check-action@9606e61c870025bc956e63156d1d55c5df54426c # v0.2.0
-      id: 'pyproject-toml'
-      with:
-        path: "${{ inputs.path_prefix }}/pyproject.toml"
-
-    - name: 'Error: Python project metadata NOT found'
-      if: steps.pyproject-toml.outputs.type == 'invalid' &&
-        steps.setup-py.outputs.type == 'invalid'
+    - name: 'Extract Python project version'
+      id: extract
       shell: bash
+      env:
+        INPUT_PATH_PREFIX: ${{ inputs.path_prefix }}
       run: |
-        # Error: Python project metadata NOT found
-        echo 'Error: neither pyproject.toml nor setup.py were found ❌'
-        exit 1
-
-    - name: 'Determine versioning type [static|dynamic]'
-      if: steps.pyproject-toml.outputs.type == 'file'
-      id: versioning
-      # yamllint disable-line rule:line-length
-      uses: lfreleng-actions/python-dynamic-version-action@a64458c0978feeb833ee5fcc10af7ff99122a31a # v0.1.7
-      with:
-        path_prefix: "${{ inputs.path_prefix }}"
-
-    - name: 'Use project version from pyproject.toml'
-      id: 'pyproject-toml-version'
-      # yamllint disable-line rule:line-length
-      if: steps.pyproject-toml.outputs.type == 'file' && steps.versioning.outputs.dynamic_version != 'true'
-      # yamllint disable-line rule:line-length
-      uses: lfreleng-actions/file-grep-regex-action@ba13750798b15e6acf23f3342a280ffc8148b950 # v0.1.4
-      with:
-        flags: '-oP -m1'
-        # https://regex101.com/r/MWmRge/1
-        regex: '(?<=^version = ")([^"]*)'
-        filename: "${{ inputs.path_prefix }}/pyproject.toml"
-
-    - name: 'Return extracted values'
-      id: set
-      shell: bash
-      # yamllint disable rule:line-length
-      run: |
-        # Return extracted values
-
-        if [ "${{ steps.pyproject-toml.outputs.type }}" = 'file' ]; then
-          source='pyproject.toml'
-          version="${{ steps.pyproject-toml-version.outputs.extracted_string}}"
-        elif [ "${{ steps.setup-py.outputs.type }}" = 'file' ]; then
-          source='setup.py'
-          version="${{ steps.setup-py-version.outputs.extracted_string}}"
-        fi
-        if [ "${{ steps.versioning.outputs.dynamic_version }}" = 'true' ]; then
-          version='dynamic'
-        fi
-
-        # Validate and output captured value
-        if [ -z "$version" ]; then
-          echo 'Project version extraction failed ❌'; exit 1
-        else
-          echo "Python project version: $version [$source] ✅"
-          echo "python_project_version=$version" >> "$GITHUB_ENV"
-          echo "python_project_version=$version" >> "$GITHUB_OUTPUT"
-        fi
+        # Delegate detection to the bundled Python helper, which handles
+        # pyproject.toml (PEP 621 / poetry), setup.cfg (declarative
+        # setuptools / PBR / attr:/file: indirection), and setup.py
+        # (regex with single- and double-quoted forms) uniformly.
+        python3 "$GITHUB_ACTION_PATH/scripts/extract_version.py"
