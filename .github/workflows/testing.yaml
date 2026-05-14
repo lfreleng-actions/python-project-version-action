@@ -22,28 +22,37 @@ permissions: {}
 jobs:
   # Pytest-based unit/integration tests covering every supported project
   # layout (modern, legacy, dynamic provider, error path) without
-  # touching the runner's filesystem outside tmp_path.
+  # touching the runner's filesystem outside tmp_path. The matrix
+  # exercises both the native ``tomllib`` path (3.11+) and the
+  # ``tomli`` fallback path (3.10) declared in ``extract_version.py``.
   pytest:
-    name: 'Pytest fixture matrix'
+    name: 'Pytest (py${{ matrix.python-version }})'
     runs-on: 'ubuntu-24.04'
     permissions:
       contents: read
     timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11']
     steps:
       - name: 'Checkout repository'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: 'Setup Python'
         # yamllint disable-line rule:line-length
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
 
-      - name: 'Install pytest'
+      - name: 'Install pytest (and tomli on 3.10)'
         shell: bash
         run: |
           python -m pip install --upgrade pip
           python -m pip install pytest
+          if [ "${{ matrix.python-version }}" = '3.10' ]; then
+            python -m pip install tomli
+          fi
 
       - name: 'Run extractor test suite'
         shell: bash
@@ -61,10 +70,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: 'Checkout repository'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: 'Checkout sample project repository'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: 'lfreleng-actions/test-python-project'
           path: 'test-python-project'

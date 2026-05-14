@@ -23,8 +23,9 @@ when running inside a GitHub Action and to stdout when running stand-alone:
 * ``source`` -- the file path the version (or dynamic flag) was derived
   from.
 * ``dynamic_version`` -- ``true`` when a dynamic provider was detected.
-* ``dynamic_provider`` -- ``pbr`` | ``setuptools-scm`` | ``versioneer`` |
-  ``setuptools-dynamic`` | ``runtime-attr`` | ``""`` (static).
+* ``dynamic_provider`` -- ``pbr`` | ``setuptools-scm`` | ``hatch-vcs`` |
+  ``versioneer`` | ``setuptools-dynamic`` | ``pyproject-dynamic`` |
+  ``runtime-attr`` | ``""`` (static).
 """
 
 from __future__ import annotations
@@ -53,6 +54,15 @@ _SCM_IN_SETUP_REQUIRES = re.compile(
 )
 _PBR_KWARG = re.compile(r"\bpbr\s*=\s*True\b", re.IGNORECASE)
 
+# Match ``version=`` assignments referencing a non-literal identifier such
+# as ``__version__``, ``pkg.__version__``, ``get_version`` or
+# ``read_version`` (with or without a trailing call). Anchoring on
+# ``version\s*=`` avoids false positives from unrelated occurrences of
+# the ``__version__`` substring in imports, docstrings, or comments.
+_RUNTIME_ATTR_ASSIGN = re.compile(
+    r"\bversion\s*=\s*(?:[\w.]*__version__|get_version|read_version)\b",
+)
+
 
 def detect_dynamic_provider_setup_py(text: str) -> str:
     """Return the dynamic-versioning provider implied by setup.py.
@@ -65,11 +75,7 @@ def detect_dynamic_provider_setup_py(text: str) -> str:
         return "setuptools-scm"
     if "versioneer.get_version" in text or "versioneer.get_cmdclass" in text:
         return "versioneer"
-    if (
-        "__version__" in text
-        or "version=get_version" in text
-        or "version=read_version" in text
-    ):
+    if _RUNTIME_ATTR_ASSIGN.search(text):
         return "runtime-attr"
     return ""
 
@@ -109,10 +115,11 @@ def _read_setup_cfg(path: Path) -> configparser.ConfigParser:
         strict=False,
         empty_lines_in_values=False,
     )
-    # configparser is case-insensitive by default on Windows-style files;
-    # keep the explicit lowercase mapping behaviour here so that both
-    # author_email and author-email become ``author-email`` (we then look
-    # up both spellings on read).
+    # Preserve option keys exactly as written in the file. By default,
+    # ``configparser`` lowercases keys via ``optionxform``; assigning
+    # ``str`` disables that transform. ``_get_cfg`` then probes both
+    # ``author_email`` and ``author-email`` spellings explicitly when
+    # reading values.
     cfg.optionxform = str  # type: ignore[assignment,method-assign]
     cfg.read(path, encoding="utf-8")
     return cfg
@@ -203,10 +210,13 @@ def extract_from_setup_py(path: Path) -> tuple[str, str, str]:
     if provider in {"pbr", "setuptools-scm", "versioneer"}:
         return "dynamic", provider, ""
 
-    # version='...' / version="..." / version = '...' etc.
-    match = re.search(r"""version\s*=\s*['"]([^'"]+)['"]""", text)
+    # version='...' / version="..." / version = '...' etc. A static
+    # quoted literal wins outright: clear ``provider`` so a stray
+    # ``__version__`` reference elsewhere in the file cannot leak a
+    # spurious ``runtime-attr`` value to downstream consumers.
+    match = re.search(r"""version\s*=\s*['\"]([^'\"]+)['\"]""", text)
     if match:
-        return match.group(1), provider, ""
+        return match.group(1), "", ""
 
     # Fall back to runtime-attr style (version=__version__ etc.) which we
     # cannot resolve statically.
