@@ -20,9 +20,50 @@ concurrency:
 permissions: {}
 
 jobs:
-  ### Test the GitHub Action in this Repository ###
-  tests:
-    name: 'Action Testing'
+  # Pytest-based unit/integration tests covering every supported project
+  # layout (modern, legacy, dynamic provider, error path) without
+  # touching the runner's filesystem outside tmp_path. The matrix
+  # exercises both the native ``tomllib`` path (3.11+) and the
+  # ``tomli`` fallback path (3.10) declared in ``extract_version.py``.
+  pytest:
+    name: 'Pytest (py${{ matrix.python-version }})'
+    runs-on: 'ubuntu-24.04'
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11']
+    steps:
+      - name: 'Checkout repository'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: 'Setup Python'
+        # yamllint disable-line rule:line-length
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: 'Install pytest (and tomli on 3.10)'
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+          if [ "${{ matrix.python-version }}" = '3.10' ]; then
+            python -m pip install tomli
+          fi
+
+      - name: 'Run extractor test suite'
+        shell: bash
+        run: |
+          python -m pytest tests/test_extract_version.py -v
+
+  # End-to-end smoke test against the real sample project. Confirms the
+  # composite action wraps the helper script correctly and surfaces all
+  # four outputs as documented.
+  smoke:
+    name: 'End-to-end smoke test'
     runs-on: 'ubuntu-24.04'
     permissions:
       contents: read
@@ -31,7 +72,6 @@ jobs:
       - name: 'Checkout repository'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      # Perform setup prior to running test(s)
       - name: 'Checkout sample project repository'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -41,13 +81,12 @@ jobs:
       - name: 'Setup static version fixture for testing'
         shell: bash
         run: |
-          # Setup static version fixture for testing
           # test-python-project now uses dynamic versioning;
-          # copy static variation for version extraction test
+          # copy the static variation in for the static-extraction test.
           cp test-python-project/variations/static-eol.toml \
             test-python-project/pyproject.toml
 
-      - name: "Run Action: ${{ github.repository }}"
+      - name: "Run Action: ${{ github.repository }} [static]"
         uses: ./
         id: test
         with:
@@ -59,19 +98,36 @@ jobs:
           # Validate Action Output
           if [ "${{ steps.test.outputs.python_project_version }}" \
             = '0.0.1' ]; then
-            echo "Action returned the expected results ✅"
+            echo "Action returned the expected version ✅"
           else
             echo 'Unexpected return value for: python_project_version ❌'
             echo "Returned: ${{ steps.test.outputs.python_project_version }}"
             echo 'Expected: 0.0.1'
             exit 1
           fi
+          # Source output must be the actual file path now, not the
+          # version string (regression test for the previous copy-paste bug).
+          source='${{ steps.test.outputs.source }}'
+          case "$source" in
+            *pyproject.toml)
+              echo "Source output is correct ($source) ✅"
+              ;;
+            *)
+              echo "Unexpected source output: $source ❌"
+              echo "Expected a path ending in pyproject.toml"
+              exit 1
+              ;;
+          esac
+          # Verify the new outputs are present and have expected values.
+          if [ "${{ steps.test.outputs.dynamic_version }}" != 'false' ]; then
+            echo 'Expected dynamic_version=false for a static-version project ❌'
+            exit 1
+          fi
+          echo 'All outputs validated successfully ✅'
 
-      # Test dynamic versioning detection
       - name: 'Restore dynamic pyproject.toml'
         shell: bash
         run: |
-          # Restore original dynamic pyproject.toml
           git -C test-python-project checkout -- pyproject.toml
 
       - name: "Run Action: ${{ github.repository }} [dynamic]"
@@ -83,13 +139,18 @@ jobs:
       - name: "Validate dynamic version output"
         shell: bash
         run: |
-          # Validate dynamic versioning detection
-          VERSION="${{ steps.test-dynamic.outputs.python_project_version }}"
-          if [ "$VERSION" = 'dynamic' ]; then
-            echo "Dynamic versioning detected correctly ✅"
-          else
-            echo "Unexpected: python_project_version ❌"
-            echo "Returned: $VERSION"
-            echo 'Expected: dynamic'
+          version='${{ steps.test-dynamic.outputs.python_project_version }}'
+          dynamic='${{ steps.test-dynamic.outputs.dynamic_version }}'
+          provider='${{ steps.test-dynamic.outputs.dynamic_provider }}'
+          if [ "$version" != 'dynamic' ] || [ "$dynamic" != 'true' ]; then
+            echo 'Dynamic versioning not detected ❌'
+            echo "version=$version dynamic_version=$dynamic"
             exit 1
           fi
+          if [ -z "$provider" ]; then
+            msg='dynamic_provider must not be empty for'
+            msg="$msg dynamic-versioned projects ❌"
+            echo "$msg"
+            exit 1
+          fi
+          echo "Dynamic versioning detected ($provider) ✅"
