@@ -44,11 +44,13 @@ runs:
   steps:
     - name: 'Setup action/environment'
       shell: bash
+      env:
+        INPUT_PATH_PREFIX: ${{ inputs.path_prefix }}
       run: |
         # Setup action/environment
 
         # Verify path_prefix a valid directory path
-        if [ ! -d "${{ inputs.path_prefix }}" ]; then
+        if [ ! -d "$INPUT_PATH_PREFIX" ]; then
           echo 'Error: invalid path/prefix to project directory ❌'
           exit 1
         fi
