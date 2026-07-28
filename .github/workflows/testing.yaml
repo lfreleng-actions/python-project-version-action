@@ -106,20 +106,23 @@ jobs:
 
       - name: "Validate action output: ${{ github.repository }}"
         shell: bash
+        env:
+          PROJECT_VERSION: ${{ steps.test.outputs.python_project_version }}
+          VERSION_SOURCE: ${{ steps.test.outputs.source }}
+          DYN_IS_DYNAMIC: ${{ steps.test.outputs.dynamic_version }}
         run: |
           # Validate Action Output
-          if [ "${{ steps.test.outputs.python_project_version }}" \
-            = '0.0.1' ]; then
+          if [ "$PROJECT_VERSION" = '0.0.1' ]; then
             echo "Action returned the expected version ✅"
           else
             echo 'Unexpected return value for: python_project_version ❌'
-            echo "Returned: ${{ steps.test.outputs.python_project_version }}"
+            echo "Returned: $PROJECT_VERSION"
             echo 'Expected: 0.0.1'
             exit 1
           fi
           # Source output must be the actual file path now, not the
           # version string (regression test for the previous copy-paste bug).
-          source='${{ steps.test.outputs.source }}'
+          source="$VERSION_SOURCE"
           case "$source" in
             *pyproject.toml)
               echo "Source output is correct ($source) ✅"
@@ -131,7 +134,7 @@ jobs:
               ;;
           esac
           # Verify the new outputs are present and have expected values.
-          if [ "${{ steps.test.outputs.dynamic_version }}" != 'false' ]; then
+          if [ "$DYN_IS_DYNAMIC" != 'false' ]; then
             echo 'Expected dynamic_version=false for a static-version project ❌'
             exit 1
           fi
@@ -150,10 +153,14 @@ jobs:
 
       - name: "Validate dynamic version output"
         shell: bash
+        env:
+          DYN_VERSION: ${{ steps.test-dynamic.outputs.python_project_version }}
+          DYN_IS_DYNAMIC: ${{ steps.test-dynamic.outputs.dynamic_version }}
+          DYN_PROVIDER: ${{ steps.test-dynamic.outputs.dynamic_provider }}
         run: |
-          version='${{ steps.test-dynamic.outputs.python_project_version }}'
-          dynamic='${{ steps.test-dynamic.outputs.dynamic_version }}'
-          provider='${{ steps.test-dynamic.outputs.dynamic_provider }}'
+          version="$DYN_VERSION"
+          dynamic="$DYN_IS_DYNAMIC"
+          provider="$DYN_PROVIDER"
           if [ "$version" != 'dynamic' ] || [ "$dynamic" != 'true' ]; then
             echo 'Dynamic versioning not detected ❌'
             echo "version=$version dynamic_version=$dynamic"
