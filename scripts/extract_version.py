@@ -153,7 +153,8 @@ def extract_from_pyproject(path: Path) -> tuple[str, str, str]:
     dynamic_fields = project.get("dynamic") or []
     if "version" in dynamic_fields:
         # Detect provider from build-system requires.
-        requires = data.get("build-system", {}).get("requires", []) or []
+        build_system = data.get("build-system") or {}
+        requires = build_system.get("requires") or []
         joined = " ".join(requires).lower()
         if "setuptools_scm" in joined or "setuptools-scm" in joined:
             return "dynamic", "setuptools-scm", ""
