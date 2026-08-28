@@ -413,5 +413,23 @@ def test_helper_detect_dynamic_provider_setup_py() -> None:
     assert detect("setup(version=__version__)") == "runtime-attr"
 
 
+def test_optimised_interpreter_can_parse_arguments() -> None:
+    """``python -OO`` strips docstrings, leaving ``__doc__`` as ``None``.
+
+    Argument parsing derives its description from ``__doc__``, so without
+    a fallback the extractor dies with ``AttributeError`` before it can
+    do anything at all.
+    """
+    proc = subprocess.run(
+        [sys.executable, "-OO", str(SCRIPT), "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    assert "--path-prefix" in proc.stdout
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
