@@ -108,19 +108,28 @@ def detect_dynamic_provider_setup_cfg(cfg: configparser.ConfigParser) -> str:
     return ""
 
 
+class _CaseSensitiveConfigParser(configparser.ConfigParser):
+    """``ConfigParser`` that preserves option keys exactly as written.
+
+    ``configparser`` lowercases option names through ``optionxform``.
+    Overriding the method (rather than rebinding the attribute, which no
+    type checker accepts) keeps the original spelling, and ``_get_cfg``
+    then probes both ``author_email`` and ``author-email`` forms
+    explicitly when reading values.
+    """
+
+    def optionxform(self, optionstr: str) -> str:
+        """Return the option name unchanged."""
+        return optionstr
+
+
 def _read_setup_cfg(path: Path) -> configparser.ConfigParser:
     """Parse setup.cfg, tolerating duplicate keys (older PBR style)."""
-    cfg = configparser.ConfigParser(
+    cfg = _CaseSensitiveConfigParser(
         interpolation=None,
         strict=False,
         empty_lines_in_values=False,
     )
-    # Preserve option keys exactly as written in the file. By default,
-    # ``configparser`` lowercases keys via ``optionxform``; assigning
-    # ``str`` disables that transform. ``_get_cfg`` then probes both
-    # ``author_email`` and ``author-email`` spellings explicitly when
-    # reading values.
-    cfg.optionxform = str  # type: ignore[assignment,method-assign]
     cfg.read(path, encoding="utf-8")
     return cfg
 
@@ -242,7 +251,11 @@ def emit(outputs: dict[str, str]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    """Run the extractor and return a process exit status."""
+    # ``__doc__`` is ``None`` when Python runs with ``-OO``, so fall back
+    # to a literal summary rather than indexing into nothing.
+    summary = (__doc__ or "Extract the version of a Python project.").splitlines()[0]
+    parser = argparse.ArgumentParser(description=summary)
     parser.add_argument(
         "--path-prefix",
         default=os.environ.get("INPUT_PATH_PREFIX", "."),

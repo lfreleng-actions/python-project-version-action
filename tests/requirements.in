@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 The Linux Foundation
+
+# Test-only dependencies for the extractor test suite.
+#
+# Regenerate tests/requirements.txt after editing this file:
+#
+#     uv pip compile tests/requirements.in --universal --generate-hashes \
+#       --no-annotate --no-header --python-version 3.10 \
+#       -o tests/requirements.txt
+
+pytest
+
+# Python 3.10 lacks the stdlib tomllib that extract_version.py prefers;
+# the marker keeps the single locked file usable across the CI matrix.
+tomli ; python_version < "3.11"

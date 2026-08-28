@@ -99,6 +99,12 @@ repos:
     hooks:
       - id: codespell
 
+  # Requires a mirror, primary repo lacks .pre-commit-hooks.yaml
+  - repo: https://github.com/DetachHead/basedpyright-prek-mirror
+    rev: 3c94d276aa3005fa1f5a977946c9dc106135c083  # frozen: 1.39.10
+    hooks:
+      - id: basedpyright
+
   - repo: https://github.com/python-jsonschema/check-jsonschema
     rev: c4654a7e007c9619a5eb63c39a456572a0fa1851  # frozen: 0.38.0
     hooks:

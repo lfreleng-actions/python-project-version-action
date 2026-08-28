@@ -52,16 +52,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: 'Install pytest (and tomli on 3.10)'
+      - name: 'Install test dependencies'
         shell: bash
-        env:
-          PYTHON_VERSION: "${{ matrix.python-version }}"
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install pytest
-          if [ "$PYTHON_VERSION" = '3.10' ]; then
-            python -m pip install tomli
-          fi
+          # --require-hashes refuses to install anything the lock file does
+          # not cover by digest, so a compromised index cannot substitute a
+          # package. tomli carries a marker and installs on 3.10 only.
+          python -m pip install --require-hashes -r tests/requirements.txt
 
       - name: 'Run extractor test suite'
         shell: bash
