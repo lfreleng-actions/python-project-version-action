@@ -1,0 +1,15 @@
+version = 1
+
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 The Linux Foundation
+
+# Licensing statements for files that cannot carry an inline SPDX header.
+# Pyright itself would tolerate JSON comments in pyrightconfig.json, but the
+# check-json pre-commit hook rejects them.
+
+[[annotations]]
+path = [
+      "pyrightconfig.json"
+]
+SPDX-License-Identifier = "Apache-2.0"
+SPDX-FileCopyrightText = "2026 The Linux Foundation"
