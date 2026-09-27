@@ -75,11 +75,6 @@ jobs:
       contents: read
     timeout-minutes: 5
     steps:
-      - name: 'Checkout repository'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
       - name: 'Checkout sample project repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -96,7 +91,7 @@ jobs:
             test-python-project/pyproject.toml
 
       - name: "Run Action: ${{ github.repository }} [static]"
-        uses: ./
+        uses: $/
         id: test
         with:
           path_prefix: 'test-python-project'
@@ -143,7 +138,7 @@ jobs:
           git -C test-python-project checkout -- pyproject.toml
 
       - name: "Run Action: ${{ github.repository }} [dynamic]"
-        uses: ./
+        uses: $/
         id: test-dynamic
         with:
           path_prefix: 'test-python-project'
