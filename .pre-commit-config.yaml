@@ -7,6 +7,12 @@ ci:
   skip:
     - gha-workflow-linter
     - aislop
+    # basedpyright needs typing modules (pytest, tomli) to resolve the
+    # imports in the code it scans, and any additional_dependencies push
+    # its environment over pre-commit.ci's 250 MiB per-hook limit (the
+    # bare hook alone is 248.7 MiB). No workflow in this repository runs
+    # it: it is enforced developer-side, by the local hook and the editor.
+    - basedpyright
   autofix_commit_msg: |
     Chore: Pre-commit autofixes
 
@@ -115,10 +121,39 @@ repos:
     hooks:
       - id: codespell
 
+  # Requires a mirror, primary repo lacks .pre-commit-hooks.yaml
+  #
+  # Configured in pyrightconfig.json rather than [tool.basedpyright],
+  # deliberately. A root pyproject.toml, even a tool-only one, makes
+  # this repository look like an installable Python project: 'pip
+  # install .' (run by .readthedocs.yml) stops rejecting the directory
+  # as not installable and builds a package from it instead. The action
+  # itself only reads <path_prefix>/pyproject.toml in the caller's
+  # project, so it is unaffected either way. pyrightconfig.json is read
+  # by (based)pyright alone and check-json rejects comments in it, hence
+  # this note lives here.
   - repo: https://github.com/DetachHead/basedpyright-prek-mirror
     rev: 706e6acebe9e88c2c28d1527d3085a14b11794c4  # frozen: 1.40.1
     hooks:
       - id: basedpyright
+        # Fail on warnings as well as errors, so anything an editor's
+        # language server shows also blocks the commit.
+        #
+        # Explicit directories with filename passing disabled: with file
+        # arguments present, 'include' is not the analysis scope, so a
+        # change to the script could break an unstaged test unnoticed.
+        # Keep this list identical to 'include' in pyrightconfig.json.
+        pass_filenames: false
+        # Run even when no Python file is staged (deletions, config-only).
+        always_run: true
+        # Keep commit-msg excluded even if default_stages ever changes.
+        stages: [pre-commit]
+        args: [--warnings, scripts, tests]
+        # Third-party imports in the scanned code, installed so they
+        # resolve genuinely: pytest (tests) and tomli (the script's
+        # Python 3.10 fallback for tomllib). Both ship inline types, and
+        # the pins match tests/requirements.txt.
+        additional_dependencies: ["pytest==9.1.1", "tomli==2.4.1"]
 
   - repo: https://github.com/lfreleng-actions/gha-workflow-linter
     rev: 0c582e431022f1c7004196fb4ea32744d1fe4843  # frozen: v1.7.0
