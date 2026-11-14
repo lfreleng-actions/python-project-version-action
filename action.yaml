@@ -55,14 +55,26 @@ runs:
           exit 1
         fi
 
+    # Provision the interpreter here rather than trusting whatever
+    # python3 the caller's PATH resolves; update-environment: false
+    # keeps the caller's own Python setup untouched.
+    - name: 'Set up Python for the version helper'
+      id: setup-python
+      # yamllint disable-line rule:line-length
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+      with:
+        python-version: '3.12'
+        update-environment: false
+
     - name: 'Extract Python project version'
       id: extract
       shell: bash
       env:
         INPUT_PATH_PREFIX: ${{ inputs.path_prefix }}
+        PYTHON: ${{ steps.setup-python.outputs.python-path }}
       run: |
         # Delegate detection to the bundled Python helper, which handles
         # pyproject.toml (PEP 621 / poetry), setup.cfg (declarative
         # setuptools / PBR / attr:/file: indirection), and setup.py
         # (regex with single- and double-quoted forms) uniformly.
-        python3 "$GITHUB_ACTION_PATH/scripts/extract_version.py"
+        "$PYTHON" -I "$GITHUB_ACTION_PATH/scripts/extract_version.py"
