@@ -28,8 +28,8 @@ jobs:
   # Pytest-based unit/integration tests covering every supported project
   # layout (modern, legacy, dynamic provider, error path) without
   # touching the runner's filesystem outside tmp_path. The matrix
-  # exercises both the native ``tomllib`` path (3.11+) and the
-  # ``tomli`` fallback path (3.10) declared in ``extract_version.py``.
+  # covers every supported Python from 3.11 upwards, including the
+  # 3.12 interpreter that action.yaml pins for the helper.
   pytest:
     name: 'Pytest (py${{ matrix.python-version }})'
     runs-on: 'ubuntu-24.04'
@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.10', '3.11']
+        python-version: ['3.11', '3.12', '3.13', '3.14']
     steps:
       - name: 'Checkout repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -57,7 +57,7 @@ jobs:
         run: |
           # --require-hashes refuses to install anything the lock file does
           # not cover by digest, so a compromised index cannot substitute a
-          # package. tomli carries a marker and installs on 3.10 only.
+          # package.
           python -m pip install --require-hashes -r tests/requirements.txt
 
       - name: 'Run extractor test suite'
