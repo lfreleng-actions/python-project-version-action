@@ -70,9 +70,9 @@ the `dynamic_provider` output:
 
 The action delegates version detection to `scripts/extract_version.py`,
 a small Python helper bundled with the action. The helper uses the
-standard library's `tomllib` (Python 3.11+) / `tomli` (3.10 fallback)
-for `pyproject.toml` and `configparser` for `setup.cfg`, and falls back
-to regex for `setup.py`. The full unit-test suite lives under `tests/`.
+standard library's `tomllib` for `pyproject.toml` and `configparser`
+for `setup.cfg`, and falls back to regex for `setup.py`. The full
+unit-test suite lives under `tests/`.
 
 The action runs the helper on a Python 3.12 interpreter it provisions
 with `actions/setup-python` and `update-environment: false`, in
